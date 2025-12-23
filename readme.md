@@ -2,138 +2,184 @@
 
 A simple Django app that demonstrates two-way communication with Slack. Create tasks in Django, send them to Slack, and let users interact with them directly from Slack!
 
-## Features
+**Prerequisites**
 
-- 📤 Send task notifications to Slack
-- ✅ Accept tasks with a button click
-- 💬 Add comments via Slack modal
-- 🔄 Real-time updates back to Django
+- Python 3.10+ (3.11 recommended)
+- Git
+- A Slack workspace where you can create an app
+- ngrok (for local Slack event delivery)
 
-## Setup Instructions
+**Quick glossary**
 
-### 1. Clone and Setup Django
+- Django: Python web framework running the app.
+- Webhook: An HTTP endpoint Slack uses to send events.
+- ngrok: Tool to expose your local server to the internet (used for Slack callbacks).
+
+---
+
+## Setup (Beginner-friendly)
+
+Follow the steps below. Commands use Windows examples first, then macOS/Linux variations where they differ.
+
+1. Clone repository
 
 ```bash
-# Create virtual environment
+git clone <your-repo-url>
+cd taskproject
+```
+
+2. Create and activate Python virtual environment
+
+Windows (PowerShell):
+
+```powershell
 python -m venv venv
+venv\Scripts\Activate.ps1
+```
 
-# Activate virtual environment
-# Windows:
+Windows (cmd.exe):
+
+```cmd
+python -m venv venv
 venv\Scripts\activate
-# Mac/Linux:
+```
+
+macOS / Linux:
+
+```bash
+python3 -m venv venv
 source venv/bin/activate
+```
 
-# Install dependencies
+3. Install dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
-# Run migrations
+4. Configure local settings and secrets
+
+Create a file `taskproject/settings_local.py` (this file should NOT be checked into source control). Example minimal contents:
+
+```python
+# taskproject/settings_local.py
+SECRET_KEY = 'replace-with-a-secure-secret'
+DEBUG = True
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+
+# Slack configuration (see Slack setup steps below)
+SLACK_SIGNING_SECRET = 'your-signing-secret'
+SLACK_BOT_TOKEN = 'xoxb-...'
+SLACK_WEBHOOK_URL = 'https://hooks.slack.com/services/xxxxx/xxxxx/xxxxx'
+
+```
+
+Add `taskproject/settings_local.py` to `.gitignore` if it's not already there.
+
+5. Run migrations and create an admin user
+
+```bash
 python manage.py makemigrations
 python manage.py migrate
-
-# Create admin user
 python manage.py createsuperuser
 ```
 
-### 2. Configure Slack
-
-1. Create Slack App at https://api.slack.com/apps
-2. Enable "Incoming Webhooks" and add webhook to your workspace
-3. Copy the Webhook URL
-4. Enable "Interactivity & Shortcuts"
-5. Add Bot Token Scopes: `chat:write`, `incoming-webhook`
-6. Install app to workspace
-
-### 3. Configure Django
-
-Create `taskproject/settings_local.py`:
-
-```python
-SLACK_WEBHOOK_URL = "your-webhook-url-here"
-```
-
-**Important:** Add `settings_local.py` to `.gitignore`!
-
-### 4. Setup ngrok
+6. Start the Django development server
 
 ```bash
-# Download from https://ngrok.com
-# Start tunnel
+python manage.py runserver 8000
+```
+
+If you see `Starting development server at http://127.0.0.1:8000/` you're good to go.
+
+---
+
+## Expose your local server with ngrok (for Slack callbacks)
+
+1. Download ngrok from https://ngrok.com and install it.
+2. Start a tunnel to port 8000:
+
+```bash
 ngrok http 8000
 ```
 
-Copy the ngrok URL (e.g., `https://abc123.ngrok.io`)
+3. Copy the HTTPS forwarding URL (example `https://abc123.ngrok.io`).
 
-### 5. Update Slack Interactivity URL
+Keep ngrok running while you test Slack interactions.
 
-In your Slack app settings:
-- Go to "Interactivity & Shortcuts"
-- Set Request URL to: `https://your-ngrok-url.ngrok.io/slack/actions/`
+---
 
-### 6. Run the Application
+## Slack App Setup (step-by-step)
+
+1. Create a Slack app at https://api.slack.com/apps (choose a workspace you can manage).
+2. Under "OAuth & Permissions" add the following Bot Token Scopes (at minimum):
+
+- `chat:write` — send messages as the app
+- `commands` — (if you later add slash commands)
+
+3. Install the app to your workspace and copy the Bot User OAuth Token (starts with `xoxb-`).
+4. Under "Basic Information" or the App credentials, note the Signing Secret.
+5. Under "Interactivity & Shortcuts" enable Interactivity and set the Request URL to:
+
+```
+<your-ngrok-url>/slack/actions/
+```
+
+Example: `https://abc123.ngrok.io/slack/actions/`
+
+6. (Optional) If the project uses slash commands or events, wire those up in the Slack app config to the appropriate endpoints (see code comments in `tasks/views.py`).
+
+7. Ensure `SLACK_SIGNING_SECRET`, `SLACK_BOT_TOKEN`, and `SLACK_WEBHOOK_URL` (if used) are present in `taskproject/settings_local.py` or in your environment.
+
+---
+
+## Project structure (key files)
+
+```
+taskproject/              # Django project
+├─ settings.py             # Base settings
+├─ settings_local.py*      # Local secrets (create this)
+tasks/                    # App that models tasks and Slack handlers
+├─ models.py               # Task model
+├─ views.py                # Slack action endpoints
+├─ utils.py                # Slack helper functions
+├─ admin.py                # Admin configuration
+manage.py                 # Django CLI
+requirements.txt          # Python dependencies
+db.sqlite3                # SQLite database (local)
+```
+---
+
+## Running tests and verification
+
+Run unit tests (if any):
 
 ```bash
-# Terminal 1: Django server
-python manage.py runserver
-
-# Terminal 2: ngrok
-ngrok http 8000
+python manage.py test
 ```
 
-## Usage
+Manual verification steps:
 
-1. Login to Django admin: `http://127.0.0.1:8000/admin`
-2. Create a new task
-3. Check your Slack channel for the notification
-4. Click "Accept" or "Comment" buttons
-5. Verify changes in Django admin
+1. Start Django server and ngrok as above.
+2. Create a task in Django admin (`http://127.0.0.1:8000/admin`).
+3. Confirm a Slack message appears in the configured channel.
+4. Click a button in Slack and confirm the change shows up in Django.
 
-## Project Structure
+---
 
+## Useful commands reference
+
+```bash
+# Run development server
+python manage.py runserver 8000
+
+# Create superuser
+python manage.py createsuperuser
+
+# Run migrations
+python manage.py migrate
+
+# Run tests
+python manage.py test
 ```
-django-slack-integration/
-├── taskproject/          # Django project settings
-├── tasks/               # Main app
-│   ├── models.py        # Task model
-│   ├── views.py         # Slack action handlers
-│   ├── utils.py         # Slack utility functions
-│   └── admin.py         # Admin configuration
-├── requirements.txt     # Python dependencies
-└── README.md           # This file
-```
-
-## Testing Checklist
-
-- [ ] Create task in Django admin
-- [ ] Slack message appears with buttons
-- [ ] Accept button updates task status
-- [ ] Comment button opens modal
-- [ ] Comment saves to database
-
-## Troubleshooting
-
-**Message not appearing in Slack?**
-- Check `SLACK_WEBHOOK_URL` in `settings_local.py`
-- Verify the webhook is active in Slack app settings
-
-**Buttons not responding?**
-- Verify ngrok is running
-- Check Slack app "Interactivity" URL is correct
-- Look at Django console for errors
-
-**Modal not opening?**
-- Check Slack app has `chat:write` permission
-- Verify the action_id matches in code
-
-## Learn More
-
-- [Slack API Documentation](https://api.slack.com/)
-- [Django Documentation](https://docs.djangoproject.com/)
-- [Block Kit Builder](https://api.slack.com/block-kit) - Design Slack messages
-
-## Author
-
-Built as an intern learning project to understand:
-- REST APIs
-- Webhooks
-- Event-driven architecture
-- Third-party integrations
+---
