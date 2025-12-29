@@ -40,16 +40,11 @@ def send_task_to_slack(task):
     }
     
     try:
-        response = requests.post(
+        requests.post(
             settings.SLACK_WEBHOOK_URL,
             json=payload,
             timeout=5
         )
-        
-        if response.status_code == 200:
-            print(f"Task sent to Slack: {task.title}")
-        else:
-            print(f"Slack error: {response.status_code}")
             
     except Exception as e:
         print(f"Failed to send to Slack: {str(e)}")
