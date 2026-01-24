@@ -38,6 +38,13 @@ def handle_button_click(payload):
     if action_id == "accept_task":
         task.status = "accepted"
         task.save()
+        requests.post(
+            settings.SLACK_WEBHOOK_URL,
+            json={
+                "text": f"Task *{task.title}* has been accepted by @{user}."
+            },
+            timeout=5
+        )
 
         return JsonResponse({
             "replace_original": True,
